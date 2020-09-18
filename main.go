@@ -91,11 +91,11 @@ func main() {
 		"GET",
 		issuesURL)
 
-	allIssues := []SingleIssue{}
+	var allIssues []SingleIssue
 
 	log.Printf("Status code %d get issues", code)
 
-	json.Unmarshal(body, &allIssues)
+	_ = json.Unmarshal(body, &allIssues)
 
 	if len(allIssues) == 0 {
 		log.Printf("Doesnt have issues to check")
@@ -108,7 +108,7 @@ func main() {
 		go func() {
 			branchName := isBranchExist(v.Iid)
 			if branchName != "" {
-				log.Printf("Branch for issue %d exist. Kill them all!!", v.Iid)
+				log.Printf("Branch for issue %d- exist. Kill them all!!", v.Iid)
 				delBranch(branchName, v.Title)
 			} else {
 				log.Printf("Branch starts with \"%d-\" is empty", v.Iid)
@@ -121,7 +121,7 @@ func main() {
 }
 
 func isBranchExist(iid int) string {
-	url := fmt.Sprintf("%s/api/v4/projects/%d/repository/branches?search=%d", glFullURL, *glProject, iid)
+	url := fmt.Sprintf("%s/api/v4/projects/%d/repository/branches?search=%d-", glFullURL, *glProject, iid)
 
 	code, body := httpHelper(
 		"GET",
