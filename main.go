@@ -16,7 +16,7 @@ import (
 
 var glURL, glToken, rocketURL, rocketUser, rocketPassword, rocketChannel *string
 var glProject *int
-var glFullURL, rFullURL, fullChannelName string
+var glFullURL, rFullURL string
 var client *http.Client
 var wg sync.WaitGroup
 var rocketClient *gorocket.Client
@@ -101,7 +101,7 @@ func main() {
 		log.Printf("Page %d, len of issues %d", page, len(allIssues))
 
 		if len(allIssues) == 0 {
-			log.Printf("-----\nThats all forks!!")
+			log.Println("Thats all forks!!")
 			break
 		}
 
@@ -112,7 +112,7 @@ func main() {
 				branchName := isBranchExist(v.Iid)
 				if branchName != "" {
 					log.Printf("Branch for issue %d exist. Kill them all!! %s", v.Iid, branchName)
-					//delBranch(branchName, v.Title, v.Iid)
+					delBranch(branchName, v.Title, v.Iid)
 				}
 				wg.Done()
 			}()
@@ -151,12 +151,12 @@ func delBranch(branchName, issueTitle string, issueId int) {
 	log.Printf("Delete branch: %s", branchName)
 	status, _ := httpHelper("DELETE", url)
 
-	log.Printf("Return status code %d after delete branch", status)
+	log.Printf("Return status code %d after delete branch\n", status)
 	if status < 300 {
 
 		opt := gorocket.Message{
 			Text: fmt.Sprintf(
-				"CLI tool: :computer: Issue #%d \"%s\" was closed and branch \"%s\" deleted",
+				"CLI tool: :computer: Issue with ID %d \"%s\" was closed and branch \"%s\" deleted",
 				issueId,
 				issueTitle,
 				branchName,
@@ -164,11 +164,11 @@ func delBranch(branchName, issueTitle string, issueId int) {
 			Channel: *rocketChannel,
 		}
 
-		log.Printf("Send message: \"%s\" to Rocket.Chat", opt.Text)
+		//log.Printf("Send message: \"%s\" to Rocket.Chat", opt.Text)
 
 		hresp, err := rocketClient.PostMessage(&opt)
 
-		log.Printf("PostMessage response status: %v", hresp.Success)
+		//log.Printf("PostMessage response status: %v", hresp.Success)
 
 		if err != nil || hresp.Success == false {
 			log.Printf("Sending message to Rocket.Chat error")
@@ -185,7 +185,7 @@ func httpHelper(method, url string) (int, []byte) {
 	res, err := client.Do(req)
 	if err != nil {
 		panic(err)
-		log.Fatal(err)
+		//log.Fatal(err)
 	}
 	defer res.Body.Close()
 
