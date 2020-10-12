@@ -122,7 +122,6 @@ func main() {
 
 		page++
 	}
-
 }
 
 func isBranchExist(iid int) string {
