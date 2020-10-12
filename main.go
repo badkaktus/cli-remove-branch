@@ -83,45 +83,49 @@ func main() {
 		log.Printf("Rocket login response message: %s", loginResp.Message)
 	}
 
-	issuesURL := fmt.Sprintf("%s/api/v4/projects/%d/issues?state=closed&per_page=100&order_by=updated_at&sort=desc", glFullURL, *glProject)
+	page := 1
+	for {
+		issuesURL := fmt.Sprintf(
+			"%s/api/v4/projects/%d/issues?state=closed&page=%d&per_page=100&order_by=updated_at&sort=desc",
+			glFullURL,
+			*glProject,
+			page,
+		)
+		code, body := httpHelper(
+			"GET",
+			issuesURL)
+		allIssues := []SingleIssue{}
 
-	log.Printf("Check issues on URL: %s", issuesURL)
+		log.Printf("Status code %d get issues", code)
+		json.Unmarshal(body, &allIssues)
+		log.Printf("Page %d, len of issues %d", page, len(allIssues))
 
-	code, body := httpHelper(
-		"GET",
-		issuesURL)
+		if len(allIssues) == 0 {
+			log.Printf("-----\nThats all forks!!")
+			break
+		}
 
-	var allIssues []SingleIssue
+		for _, v := range allIssues {
+			wg.Add(1)
 
-	log.Printf("Status code %d get issues", code)
+			go func() {
+				branchName := isBranchExist(v.Iid)
+				if branchName != "" {
+					log.Printf("Branch for issue %d exist. Kill them all!! %s", v.Iid, branchName)
+					//delBranch(branchName, v.Title, v.Iid)
+				}
+				wg.Done()
+			}()
 
-	_ = json.Unmarshal(body, &allIssues)
+			wg.Wait()
+		}
 
-	if len(allIssues) == 0 {
-		log.Printf("Doesnt have issues to check")
-		return
-	}
-
-	for _, v := range allIssues {
-		wg.Add(1)
-
-		go func() {
-			branchName := isBranchExist(v.Iid)
-			if branchName != "" {
-				log.Printf("Branch for issue %d- exist. Kill them all!!", v.Iid)
-				delBranch(branchName, v.Title)
-			} else {
-				log.Printf("Branch starts with \"%d-\" is empty", v.Iid)
-			}
-			wg.Done()
-		}()
-
-		wg.Wait()
+		page++
 	}
 }
 
 func isBranchExist(iid int) string {
-	url := fmt.Sprintf("%s/api/v4/projects/%d/repository/branches?search=%d-", glFullURL, *glProject, iid)
+	url := fmt.Sprintf("%s/api/v4/projects/%d/repository/branches?search=^%d-", glFullURL, *glProject, iid)
 
 	code, body := httpHelper(
 		"GET",
@@ -142,7 +146,7 @@ func isBranchExist(iid int) string {
 	return ""
 }
 
-func delBranch(branchName, issueTitle string) {
+func delBranch(branchName, issueTitle string, issueId int) {
 	url := fmt.Sprintf("%s/api/v4/projects/%d/repository/branches/%s", glFullURL, *glProject, branchName)
 	log.Printf("Delete branch: %s", branchName)
 	status, _ := httpHelper("DELETE", url)
@@ -152,7 +156,8 @@ func delBranch(branchName, issueTitle string) {
 
 		opt := gorocket.Message{
 			Text: fmt.Sprintf(
-				"CLI tool: :computer: Issue \"%s\" закрыт и branch \"%s\" успешно удален",
+				"CLI tool: :computer: Issue #%d \"%s\" was closed and branch \"%s\" deleted",
+				issueId,
 				issueTitle,
 				branchName,
 			),
